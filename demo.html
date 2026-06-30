@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>景色赞美器</title>
+<style>
+/* ========== CSS 变量：日夜主题 ========== */
+:root {
+  /* 白天默认 */
+  --sky-top: #4facfe;
+  --sky-bottom: #f0f9ff;
+  --sun-color: #ffd700;
+  --sun-glow: rgba(255, 215, 0, 0.4);
+  --cloud-color: rgba(255, 255, 255, 0.85);
+  --mountain-far: #8ba888;
+  --mountain-mid: #6b9a6e;
+  --mountain-near: #4a7c59;
+  --grass-color: #7cb342;
+  --grass-dark: #558b2f;
+  --particle-color: rgba(255, 215, 100, 0.6);
+  --particle-size: 3px;
+  --card-bg: rgba(255, 255, 255, 0.22);
+  --card-border: rgba(255, 255, 255, 0.35);
+  --text-color: #2c2416;
+  --text-muted: #5c4d3a;
+  --accent: #d97706;
+  --accent2: #7c3aed;
+  --btn-bg: linear-gradient(135deg, #f59e0b, #d97706);
+  --btn-shadow: rgba(217, 119, 6, 0.35);
+  --glow-color: rgba(245, 158, 11, 0.25);
+  --orbit-color: rgba(255, 255, 255, 0.4);
+}
+
+[data-theme="night"] {
+  --sky-top: #0a0e27;
+  --sky-bottom: #1a1a40;
+  --sun-color: #e8e8e8;
+  --sun-glow: rgba(232, 232, 232, 0.25);
+  --cloud-color: rgba(200, 210, 230, 0.2);
+  --mountain-far: #1a2744;
+  --mountain-mid: #152238;
+  --mountain-near: #0f1929;
+  --grass-color: #1a3a1a;
+  --grass-dark: #0f250f;
+  --particle-color: rgba(163, 230, 53, 0.7);
+  --particle-size: 4px;
+  --card-bg: rgba(0, 0, 0, 0.22);
+  --card-border: rgba(255, 255, 255, 0.12);
+  --text-color: #e2e8f0;
+  --text-muted: #a0aec0;
+  --accent: #818cf8;
+  --accent2: #c084fc;
+  --btn-bg: linear-gradient(135deg, #6366f1, #8b5cf6);
+  --btn-shadow: rgba(99, 102, 241, 0.35);
+  --glow-color: rgba(129, 140, 248, 0.25);
+  --orbit-color: rgba(200, 200, 255, 0.15);
+}
+
+/* ========== 基础重置 ========== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+body {
+  font-family: "PingFang SC", "Microsoft YaHei", "Source Han Serif SC", "Noto Serif SC", Georgia, serif;
+  color: var(--text-color);
+  overflow-x: hidden;
+  min-height: 100vh;
+  transition: color 1.2s ease;
+}
+
+/* ========== 背景风景层 ========== */
+.landscape {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 100%);
+  transition: background 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 太阳 / 月亮 */
+.celestial {
+  position: absolute;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, var(--sun-color), transparent 70%);
+  box-shadow: 0 0 60px 20px var(--sun-glow), 0 0 120px 40px var(--sun-glow);
+  top: 8%; right: 15%;
+  transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+}
+[data-theme="night"] .celestial {
+  width: 60px; height: 60px;
+  background: radial-gradient(circle at 30% 30%, #f0f0f0, #c0c0c0);
+  box-shadow: 0 0 40px 10px rgba(200, 200, 220, 0.3), 0 0 80px 20px rgba(200, 200, 220, 0.15);
+  border-radius: 50%;
+  /* 弯月效果 */
+  box-shadow: inset -8px -4px 0 0 #0a0e27, 0 0 40px 10px rgba(200,200,220,0.2);
+}
+
+/* 星星（仅夜间） */
+.stars {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.5s ease;
+  z-index: 1;
+}
+[data-theme="night"] .stars { opacity: 1; }
+.star {
+  position: absolute;
+  width: 2px; height: 2px;
+  background: #fff;
+  border-radius: 50%;
+  animation: twinkle 3s ease-in-out infinite;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* 云朵 */
+.cloud {
+  position: absolute;
+  background: var(--cloud-color);
+  border-radius: 50px;
+  transition: background 1.5s ease;
+  z-index: 2;
+}
+.cloud::before, .cloud::after {
+  content: '';
+  position: absolute;
+  background: inherit;
+  border-radius: 50%;
+}
+.cloud1 { width: 120px; height: 40px; top: 12%; left: 10%; animation: float1 25s linear infinite; }
+.cloud1::before { width: 50px; height: 50px; top: -25px; left: 15px; }
+.cloud1::after { width: 40px; height: 40px; top: -15px; left: 50px; }
+.cloud2 { width: 100px; height: 35px; top: 20%; left: 60%; animation: float2 30s linear infinite; }
+.cloud2::before { width: 45px; height: 45px; top: -22px; left: 12px; }
+.cloud2::after { width: 35px; height: 35px; top: -12px; left: 45px; }
+.cloud3 { width: 140px; height: 45px; top: 8%; left: 75%; animation: float1 35s linear infinite reverse; }
+.cloud3::before { width: 55px; height: 55px; top: -28px; left: 20px; }
+.cloud3::after { width: 45px; height: 45px; top: -18px; left: 60px; }
+@keyframes float1 { 0% { transform: translateX(-50px); } 50% { transform: translateX(50px); } 100% { transform: translateX(-50px); } }
+@keyframes float2 { 0% { transform: translateX(30px); } 50% { transform: translateX(-40px); } 100% { transform: translateX(30px); } }
+
+/* 远山（三层视差） */
+.mountain {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  transition: all 1.5s ease;
+}
+.mountain-far {
+  height: 35%;
+  background: linear-gradient(135deg, var(--mountain-far) 0%, transparent 100%);
+  clip-path: polygon(0% 100%, 0% 40%, 15% 20%, 30% 45%, 45% 15%, 60% 40%, 75% 10%, 90% 35%, 100% 25%, 100% 100%);
+  z-index: 3;
+  opacity: 0.7;
+}
+.mountain-mid {
+  height: 28%;
+  background: linear-gradient(135deg, var(--mountain-mid) 0%, transparent 100%);
+  clip-path: polygon(0% 100%, 0% 55%, 20% 30%, 35% 50%, 50% 25%, 65% 45%, 80% 20%, 100% 40%, 100% 100%);
+  z-index: 4;
+  opacity: 0.85;
+}
+.mountain-near {
+  height: 20%;
+  background: linear-gradient(135deg, var(--mountain-near) 0%, transparent 100%);
+  clip-path: polygon(0% 100%, 0% 60%, 25% 35%, 40% 55%, 55% 30%, 70% 50%, 85% 25%, 100% 45%, 100% 100%);
+  z-index: 5;
+}
+
+/* 草地 */
+.grass {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 12%;
+  background: linear-gradient(180deg, var(--grass-color) 0%, var(--grass-dark) 100%);
+  z-index: 6;
+  transition: all 1.5s ease;
+}
+
+/* 装饰漂浮元素 */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--orbit-color);
+  animation: orbFloat 8s ease-in-out infinite;
+  z-index: 2;
+}
+.orb1 { width: 60px; height: 60px; top: 15%; left: 5%; animation-delay: 0s; }
+.orb2 { width: 40px; height: 40px; top: 60%; left: 85%; animation-delay: 2s; }
+.orb3 { width: 80px; height: 80px; top: 70%; left: 20%; animation-delay: 4s; opacity: 0.5; }
+.orb4 { width: 30px; height: 30px; top: 30%; left: 70%; animation-delay: 1s; }
+.orb5 { width: 50px; height: 50px; top: 45%; left: 45%; animation-delay: 3s; }
+.orb6 { width: 35px; height: 35px; top: 80%; left: 60%; animation-delay: 5s; }
+@keyframes orbFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+/* ========== Canvas 粒子层 ========== */
+#particleCanvas {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+}
+
+/* ========== 鼠标拖尾容器 ========== */
+#trailContainer {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+.trail-dot {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: trailFade 1.5s ease-out forwards;
+}
+@keyframes trailFade {
+  0% { opacity: 0.6; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.3); }
+}
+
+/* ========== 视差层 ========== */
+.parallax-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  transition: transform 0.3s ease-out;
+}
+
+/* ========== UI 容器 ========== */
+.ui-container {
+  position: relative;
+  z-index: 10;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+/* ========== 标题 ========== */
+.title-section {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+.title-section h1 {
+  font-size: 2.4rem;
+  font-weight: 800;
+  background: linear-gradient(120deg, var(--accent), var(--accent2));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 3s ease infinite;
+  letter-spacing: -0.02em;
+}
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% center; }
+  50% { background-position: 100% center; }
+}
+.title-section .subtitle {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+  font-style: italic;
+}
+
+/* ========== 毛玻璃卡片 ========== */
+.glass-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 1.5rem 2rem;
+  width: 100%;
+  max-width: 640px;
+  margin-bottom: 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  transition: all 1.2s ease;
+}
+
+/* ========== 输入框 ========== */
+.input-area textarea {
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 16px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  transition: all 0.3s ease;
+}
+.input-area textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--glow-color);
+}
+.input-area textarea::placeholder { color: var(--text-muted); opacity: 0.7; }
+
+/* ========== 心境选择器 ========== */
+.mood-selector { margin: 1rem 0; }
+.mood-selector-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+  display: block;
+}
+.mood-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  position: relative;
+}
+.mood-btn {
+  position: relative;
+  padding: 8px 16px;
+  border: 1px solid var(--card-border);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-color);
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mood-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-1px); }
+.mood-btn.active {
+  background: var(--btn-bg);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 15px var(--btn-shadow);
+}
+.mood-icon {
+  width: 16px; height: 16px;
+  display: inline-block;
+  position: relative;
+}
+/* 愉悦 - 太阳 */
+.mood-icon.sun::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: currentColor;
+}
+/* 希望 - 星星 */
+.mood-icon.star { clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+/* 宁静 - 叶子 */
+.mood-icon.leaf { border-radius: 0 50% 0 50%; background: currentColor; }
+/* 感伤 - 雨滴 */
+.mood-icon.raindrop { border-radius: 50% 50% 50% 0; background: currentColor; transform: rotate(-45deg); }
+/* 迷茫 - 云雾 */
+.mood-icon.cloud-icon { border-radius: 50%; background: currentColor; opacity: 0.6; }
+.mood-icon.cloud-icon::after {
+  content: '';
+  position: absolute;
+  left: 6px; top: 4px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+}
+/* 震撼 - 闪电 */
+.mood-icon.bolt {
+  clip-path: polygon(60% 0%, 40% 40%, 70% 40%, 30% 100%, 50% 50%, 20% 50%);
+  background: currentColor;
+}
+
+/* ========== 风格选择器 ========== */
+.style-selector { margin: 1rem 0; }
+.style-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.style-btn {
+  padding: 8px 18px;
+  border: 1px solid var(--card-border);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-color);
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+.style-btn:hover { background: rgba(255, 255, 255, 0.15); }
+.style-btn.active {
+  background: var(--btn-bg);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 15px var(--btn-shadow);
+}
+
+/* ========== 生成按钮 ========== */
+.generate-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 14px;
+  background: var(--btn-bg);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  margin-top: 0.5rem;
+}
+.generate-btn:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 25px var(--btn-shadow);
+}
+.generate-btn:active { transform: scale(0.98); }
+/* 流光边框 */
+.generate-btn::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 16px;
+  background: conic-gradient(from var(--angle, 0deg), var(--accent), var(--accent2), var(--accent));
+  z-index: -1;
+  animation: rotateBorder 4s linear infinite;
+  opacity: 0.6;
+}
+@property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@keyframes rotateBorder { to { --angle: 360deg; } }
+
+/* 水波纹 */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(0);
+  animation: rippleAnim 0.6s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes rippleAnim {
+  to { transform: scale(4); opacity: 0; }
+}
+
+/* ========== 输出区域 ========== */
+.output-area {
+  margin-top: 1rem;
+  min-height: 80px;
+}
+.output-placeholder {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1.5rem;
+  opacity: 0.6;
+}
+.output-text {
+  font-size: 1.1rem;
+  line-height: 1.9;
+  color: var(--text-color);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.output-text .cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background: var(--accent);
+  margin-left: 2px;
+  animation: blink 0.8s step-end infinite;
+  vertical-align: text-bottom;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* 呼吸光晕 */
+.output-area.has-result {
+  animation: breatheGlow 3s ease-in-out infinite;
+}
+@keyframes breatheGlow {
+  0%, 100% { box-shadow: 0 0 10px var(--glow-color); }
+  50% { box-shadow: 0 0 30px var(--glow-color), 0 0 60px var(--glow-color); }
+}
+
+/* ========== 操作按钮行 ========== */
+.action-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 1rem;
+  justify-content: center;
+}
+.action-btn {
+  padding: 8px 20px;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-color);
+}
+
+/* ========== 日夜切换按钮 ========== */
+.theme-toggle {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  backdrop-filter: blur(10px);
+  color: var(--text-color);
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.5s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+.theme-toggle:hover {
+  transform: scale(1.1) rotate(15deg);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+/* CSS 太阳图标 */
+.theme-toggle .sun-icon {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  position: relative;
+}
+.theme-toggle .sun-icon::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px dotted var(--accent);
+  opacity: 0.5;
+}
+/* CSS 月亮图标 */
+.theme-toggle .moon-icon {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  box-shadow: inset -5px -2px 0 0 var(--accent);
+}
+
+/* ========== 加载动画 ========== */
+.loading-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  padding: 1.5rem;
+}
+.loading-dots span {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: dotBounce 1.4s ease-in-out infinite both;
+}
+.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+@keyframes dotBounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 600px) {
+  .title-section h1 { font-size: 1.8rem; }
+  .glass-card { padding: 1.2rem 1rem; }
+  .mood-buttons, .style-buttons { justify-content: center; }
+  .theme-toggle { bottom: 20px; right: 20px; width: 44px; height: 44px; }
+}
+</style>
+</head>
+<body data-theme="day">
+
+<!-- ========== 背景风景 ========== -->
+<div class="landscape" id="landscape">
+  <div class="celestial" id="celestial"></div>
+  <div class="stars" id="stars"></div>
+  <div class="cloud cloud1"></div>
+  <div class="cloud cloud2"></div>
+  <div class="cloud cloud3"></div>
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+  <div class="orb orb4"></div>
+  <div class="orb orb5"></div>
+  <div class="orb orb6"></div>
+  <div class="mountain mountain-far parallax-layer" data-speed="0.02"></div>
+  <div class="mountain mountain-mid parallax-layer" data-speed="0.05"></div>
+  <div class="mountain mountain-near parallax-layer" data-speed="0.1"></div>
+  <div class="grass parallax-layer" data-speed="0.15"></div>
+</div>
+
+<!-- ========== Canvas 粒子 ========== -->
+<canvas id="particleCanvas"></canvas>
+
+<!-- ========== 鼠标拖尾 ========== -->
+<div id="trailContainer"></div>
+
+<!-- ========== UI ========== -->
+<div class="ui-container">
+
+  <div class="title-section">
+    <h1>景色赞美器</h1>
+    <p class="subtitle">世界很大，你看见的美，值得被好好赞美</p>
+  </div>
+
+  <div class="glass-card input-area">
+    <textarea id="sceneInput" placeholder="描述你当前所处的环境，比如：我在海边看日落..."></textarea>
+
+    <div class="mood-selector">
+      <span class="mood-selector-label">选择你当下的心境</span>
+      <div class="mood-buttons" id="moodButtons">
+        <button class="mood-btn active" data-mood="愉悦">
+          <span class="mood-icon sun"></span>愉悦
+        </button>
+        <button class="mood-btn" data-mood="希望">
+          <span class="mood-icon star"></span>希望
+        </button>
+        <button class="mood-btn" data-mood="宁静">
+          <span class="mood-icon leaf"></span>宁静
+        </button>
+        <button class="mood-btn" data-mood="感伤">
+          <span class="mood-icon raindrop"></span>感伤
+        </button>
+        <button class="mood-btn" data-mood="迷茫">
+          <span class="mood-icon cloud-icon"></span>迷茫
+        </button>
+        <button class="mood-btn" data-mood="震撼">
+          <span class="mood-icon bolt"></span>震撼
+        </button>
+      </div>
+    </div>
+
+    <div class="style-selector">
+      <span class="mood-selector-label">选择输出风格</span>
+      <div class="style-buttons" id="styleButtons">
+        <button class="style-btn active" data-style="一句话">一句话</button>
+        <button class="style-btn" data-style="一句诗">一句诗</button>
+        <button class="style-btn" data-style="一段话">一段话</button>
+        <button class="style-btn" data-style="自由发挥">自由发挥</button>
+      </div>
+    </div>
+
+    <button class="generate-btn" id="generateBtn">生成赞美</button>
+  </div>
+
+  <div class="glass-card output-area" id="outputArea">
+    <div class="output-placeholder" id="outputPlaceholder">在这里，一段美景感叹即将诞生...</div>
+    <div class="output-text" id="outputText" style="display:none;"></div>
+    <div class="action-row" id="actionRow" style="display:none;">
+      <button class="action-btn" id="copyBtn">复制</button>
+      <button class="action-btn" id="regenBtn">重新生成</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== 日夜切换按钮 ========== -->
+<button class="theme-toggle" id="themeToggle" title="切换白天/黑夜">
+  <div class="sun-icon" id="themeIcon"></div>
+</button>
+
+<script>
+// ==================== 配置 ====================
+const MOODS = ['愉悦', '希望', '宁静', '感伤', '迷茫', '震撼'];
+const STYLES = ['一句话', '一句诗', '一段话', '自由发挥'];
+let currentMood = '愉悦';
+let currentStyle = '一句话';
+let isNight = false;
+let isTyping = false;
+
+// ==================== 赞美模板数据库 ====================
+const TEMPLATES = {
+  sea: {
+    愉悦: {
+      一句话: ['海天一色处，心随浪花舞', '碧海映晴空，万物皆温柔', '浪声如歌，阳光正好'],
+      一句诗: ['碧海潮生逐浪高，心随鸥鸟共逍遥', '金沙万里映朝阳，海韵悠悠入梦乡', '涛声依旧笑春风，一片冰心在玉壶'],
+      一段话: ['海风吹来咸咸的气息，像是大自然递来的邀请函。阳光洒在波光粼粼的海面上，每一朵浪花都在对你微笑。站在这里，整个世界都变得辽阔而温柔，所有的烦恼都被海风轻轻带走。', '天是湛蓝的，海是碧绿的，而你是自由的。脚下的细沙温软如绸，远处的白帆点缀着海平线。这一刻，只想让时间静止，把这份美好永远收藏在心底。']
+    },
+    希望: {
+      一句话: ['潮起潮落，总有新的希望在等你', '海的尽头，是梦开始的地方', '每朵浪花都在说：明天会更好'],
+      一句诗: ['潮生潮落无穷尽，前路茫茫总有光', '海天一色接天际，扬帆起航正当时', '长风破浪会有时，直挂云帆济沧海'],
+      一段话: ['潮水一次次涌上岸来，又一次次退回去，像是在提醒你：生活也是如此，有涨有落，但永远会有新的浪花带来新的希望。远方的海平线模糊而神秘，那里藏着无数未知的可能，而每一个可能，都是一个崭新的开始。', '站在海边，看着太阳从海平面升起，金色的光芒一点点染遍整片天空。你忽然明白，不管昨天经历了什么，今天的朝阳依然会如约而至。海不会停止涌动，就像生活不会停止给予希望。']
+    },
+    宁静: {
+      一句话: ['听海的声音，心自然就静了', '潮起潮落，心如止水', '海风不语，却道尽温柔'],
+      一句诗: ['海天一色无纤尘，心静如水照碧空', '潮声入耳心自静，万籁俱寂水东流', '坐看潮起潮落处，心随鸥鸟入云深'],
+      一段话: ['海风轻轻拂过脸颊，带着一丝凉意和无尽的温柔。远处的海鸥发出悠长的鸣叫，声音被海风吹散，变得模糊而遥远。你坐在沙滩上，什么都不想，什么都不做，只是静静地听着海浪一次次拍打岸边的声音。这一刻，内心前所未有的平静。', '黄昏的海边，天空被染成淡淡的粉紫色。潮水不紧不慢地涨着，像是在履行一个古老的约定。你忽然觉得，人生不必总是那么匆忙，偶尔停下来，看看海，听听风，也是一种难得的幸福。']
+    },
+    感伤: {
+      一句话: ['海的那边，是不是也有人在想念', '潮声依旧，故人已远', '浪花淘尽，只剩回忆'],
+      一句诗: ['潮起潮落人何处，独对斜阳泪满巾', '海风萧瑟吹人老，往事如烟不可追', '浪花有意千里雪，桃花无言一队春'],
+      一段话: ['海风带着咸涩的味道，像是某种未说出口的告别。你望着那片茫茫的大海，想起那些曾经一起看过海的人，如今却已散落在天涯。潮起潮落，日复一日，唯有回忆像海边的贝壳，被潮水一次次冲上岸来，又一次次被带走。', '夕阳把海面染成一片血红，像是某种凄美的仪式。你独自站在海边，听着海浪一次次拍打礁石，声音单调而固执。原来有些风景，再美也只是一个人的风景；有些路，再长也只能一个人走。']
+    },
+    迷茫: {
+      一句话: ['海那么大，我的方向在哪里', '潮起潮落，我却不知何去何从', '海天一线，哪边是我的归途'],
+      一句诗: ['茫茫大海无归路，一叶扁舟任东西', '潮来潮去皆天意，人在江湖不由己', '海阔凭鱼跃，天高任鸟飞，何处是我家'],
+      一段话: ['海天一色，分不清哪里是天，哪里是海。你站在沙滩上，看着那片无边无际的蓝，忽然觉得自己渺小得像一粒沙。未来的路在哪里？该往哪个方向走？海浪一次次涌上来，像是在追问，又像是在沉默。也许答案就藏在下一个浪头里，只是你还没有准备好去迎接。', '海风吹过，带来远方的气息，那是你从未去过的地方。你望着那片苍茫的海，心中充满了疑问：我要去哪里？我能到达吗？潮水不言，只是自顾自地涨落，仿佛在说——走吧，边走边找，总会找到属于你的岸。']
+    },
+    震撼: {
+      一句话: ['天地之间，海是最磅礴的诗篇', '巨浪滔天，方能懂海的威严', '海之壮阔，让一切言语苍白'],
+      一句诗: ['惊涛拍岸卷飞雪，乱石穿空势磅礴', '海纳百川吞日月，气吞万里如虎狼', '巨浪滔天声震耳，天地苍茫一色间'],
+      一段话: ['巨浪从远处呼啸而来，像一堵移动的水墙，带着不可阻挡的气势狠狠撞向礁石。水花四溅，白雾升腾，整个海面都在颤抖。你站在岸边，感受着脚下大地的震动，忽然明白什么叫天地的力量——那是人力无法企及的磅礴，是宇宙最原始的威严。', '夕阳西下，整片海被染成熔岩般的金红色。海浪翻涌着、咆哮着、义无反顾地冲向岸边，像是某种古老的仪式在进行。你站在那里，渺小得像一粒沙，却忽然觉得——能见证这样的壮美，这一生，值了。']
+    }
+  },
+  mountain: {
+    愉悦: {
+      一句话: ['山高我为峰，风清云淡笑', '翠峰入云端，心随鸟飞旋', '一览众山小，万物皆可爱'],
+      一句诗: ['会当凌绝顶，一览众山小', '山色空蒙雨亦奇，淡妆浓抹总相宜', '采菊东篱下，悠然见南山'],
+      一段话: ['山顶的风带着青草的香气，吹得人神清气爽。放眼望去，层峦叠嶂尽在脚下，云海在山间缓缓流动，像是给群山披上了一层薄纱。你忍不住张开双臂，想要拥抱这片天地——原来站在高处，世界真的不一样。', '阳光透过树叶的缝隙洒下来，在地上画出斑驳的光影。山间的溪流叮叮咚咚地唱着歌，鸟儿在枝头跳跃鸣叫。你深吸一口气，满肺都是森林的清香。这一刻，你忽然觉得，活着真好，能感受这一切真好。']
+    },
+    希望: {
+      一句话: ['山再高，也挡不住攀登的脚步', '日出东山，新的一天充满希望', '登高望远，未来可期'],
+      一句诗: ['山重水复疑无路，柳暗花明又一村', '不畏浮云遮望眼，自缘身在最高层', '欲穷千里目，更上一层楼'],
+      一段话: ['山路蜿蜒向上，每一步都充满挑战，但每走一步，视野就更开阔一分。当你终于登上山顶，看着朝阳从山那边升起，金色的光芒一点点驱散晨雾，你忽然明白——所有的辛苦都是值得的，因为最美的风景，永远在高处等你。', '站在山巅，看着脚下的云海翻涌，远处的山峰若隐若现。你想起曾经以为高不可攀的目标，如今已被踩在脚下。原来所谓不可能，只是还没开始走。山有顶，路有尽，但人生的攀登，永远不会停止。']
+    },
+    宁静: {
+      一句话: ['山静如古画，心淡如秋水', '听风入松，万物归寂', '山居无事，听泉品茗'],
+      一句诗: ['空山不见人，但闻人语响', '明月松间照，清泉石上流', '行到水穷处，坐看云起时'],
+      一段话: ['山林深处，万籁俱寂。只有风吹过树叶的沙沙声，和远处泉水的叮咚声。你找一块平整的石头坐下，闭上眼睛，感受着阳光透过树叶洒下的斑驳光影。这一刻，不需要思考，不需要行动，只需要静静地存在。山不言语，却教会了你什么叫宁静。', '清晨的山间，薄雾还未散去，像是一层轻纱笼罩着整个山谷。你沿着石板路慢慢走着，脚下是湿润的青苔，身旁是参天的古树。空气中弥漫着泥土和松针的气息，让人不由自主地放慢了呼吸。在这里，时间仿佛也变得缓慢而温柔。']
+    },
+    感伤: {
+      一句话: ['山依旧，人已非', '落叶满山，往事如烟', '独坐空山，物是人非'],
+      一句诗: ['山外青山楼外楼，西湖歌舞几时休', '无边落木萧萧下，不尽长江滚滚来', '昔人已乘黄鹤去，此地空余黄鹤楼'],
+      一段话: ['山还是那座山，树还是那些树，只是曾经一起爬山的人，如今已经各奔东西。你独自站在山顶，看着那片熟悉的风景，心中却多了一丝说不清道不明的惆怅。风吹过来，带着落叶的气息，像是某种无声的告别。', '黄昏的山林，光线一点点暗下去，树影被拉得很长很长。你坐在那块曾经一起坐过的石头上，看着夕阳一点点沉入山的那一边。山不言语，却似乎什么都懂——那些未说出口的想念，那些回不去的时光，都被它默默收进了暮色里。']
+    },
+    迷茫: {
+      一句话: ['山的那边，还是山吗', '云雾缭绕，前路茫茫', '登高却望不见远方'],
+      一句诗: ['不识庐山真面目，只缘身在此山中', '云深不知处，日暮待何人', '山回路转不见君，雪上空留马行处'],
+      一段话: ['山间的雾气越来越浓，前方的路渐渐消失在白茫茫一片中。你停下脚步，不知道该继续向上还是原路返回。四周安静得可怕，连鸟叫声都消失了。你忽然觉得，人生就像这座山，有时候以为快到了山顶，却发现前面还有更高的峰。', '站在山腰，抬头望不见顶，低头看不见底。云雾在身边缭绕，像是被困在一个没有出口的梦里。你想找一个人问路，却发现自己早已走出了人声鼎沸的山脚，来到了这片寂静无人的深处。也许迷路本身，也是一条路。']
+    },
+    震撼: {
+      一句话: ['山岳无言，却自有万钧之力', '壁立千仞，天地为之色变', '群山如剑，直指苍穹'],
+      一句诗: ['飞流直下三千尺，疑是银河落九天', '横看成岭侧成峰，远近高低各不同', '千山鸟飞绝，万径人踪灭'],
+      一段话: ['悬崖峭壁如同被巨斧劈开，笔直地插入云霄。站在崖边往下看，深不见底的峡谷让人头晕目眩。风从谷底呼啸而上，带着潮湿的寒气，吹得人站立不稳。你忽然意识到，在这亿万年的大山面前，人类的存在不过是一瞬间——这种认知让人既恐惧又敬畏。', '群峰连绵起伏，像是一条沉睡的巨龙横亘在大地之上。晨曦中，山峰被染成金红色，层层叠叠向远方延伸，直到消失在云雾之中。你站在那里，感觉自己渺小得像一粒尘埃，却又莫名地被这种壮阔所鼓舞——原来世界这么大，值得我们用一生去探索。']
+    }
+  },
+  sunset: {
+    愉悦: {
+      一句话: ['落日熔金，万物皆染暖', '夕阳无限好，此刻正当时', '霞光万道，美不胜收'],
+      一句诗: ['落霞与孤鹜齐飞，秋水共长天一色', '夕阳无限好，只是近黄昏', '一道残阳铺水中，半江瑟瑟半江红'],
+      一段话: ['夕阳像一颗巨大的咸蛋黄，悬在天边，把整片天空都染成了蜜糖色。云朵被镶上了金边，层层叠叠像是棉花糖做的城堡。你站在晚霞里，感觉自己也被镀上了一层温暖的光。这一刻，只想把这份美好分享给全世界。', '天边的晚霞从橙红渐变到粉紫，像是谁不小心打翻了调色盘。归鸟的剪影从霞光中掠过，留下一串清脆的叫声。你深吸一口气，空气中似乎都弥漫着甜蜜的味道。原来一天的结束，也可以这么美。']
+    },
+    希望: {
+      一句话: ['夕阳落下，是为了明天更好的升起', '每一道晚霞，都是明天的预告', '日落不是结束，是新的开始'],
+      一句诗: ['沉舟侧畔千帆过，病树前头万木春', '山重水复疑无路，柳暗花明又一村', '野火烧不尽，春风吹又生'],
+      一段话: ['夕阳正在落下，但你知道它明天还会升起。就像此刻的晚霞，虽然短暂，却用尽全力绽放最美的色彩。你忽然明白，生命的每一个阶段都有它的意义——结束不是终点，而是下一个开始的序曲。', '最后一抹阳光消失在地平线下，但天空并没有立刻暗下来。余晖依然在天边徘徊，像是舍不得离开。你看着那片渐渐黯淡的霞光，心中却升起一股暖意——因为你知道，黑暗之后必有黎明，而明天的朝阳，会比今天更加灿烂。']
+    },
+    宁静: {
+      一句话: ['看夕阳慢慢沉，心也跟着静了', '日落而息，万物归宁', '霞光渐淡，心亦悠然'],
+      一句诗: ['行到水穷处，坐看云起时', '人闲桂花落，夜静春山空', '月上柳梢头，人约黄昏后'],
+      一段话: ['夕阳一点点沉下去，天边的颜色从炽烈的橙红慢慢变成温柔的粉紫。整个世界都安静了下来，只有晚风轻拂树叶的沙沙声。你坐在窗前，看着这场天空的告别演出，内心前所未有的平静。不需要说话，不需要思考，只是静静地看着，就够了。', '黄昏的光线是柔和的，没有正午的刺眼，也没有夜晚的昏暗。它恰到好处地照亮着一切，给万物都镀上了一层温柔的滤镜。你泡了一杯茶，坐在阳台上，看着夕阳慢慢沉入楼群之后。这一天即将结束，而你，带着满心的宁静。']
+    },
+    感伤: {
+      一句话: ['夕阳无限好，只是近黄昏', '晚霞再美，也留不住', '日落人归，独留余晖'],
+      一句诗: ['夕阳无限好，只是近黄昏', '日暮乡关何处是，烟波江上使人愁', '夕阳西下，断肠人在天涯'],
+      一段话: ['夕阳正在一点点沉下去，像是一个不愿离去的告别。天边的晚霞从绚烂的橙红变成黯淡的灰紫，色彩一点点褪去，如同某些正在消逝的记忆。你看着这场盛大的落幕，忽然觉得有些风景之所以美丽，正是因为它注定会消失。', '黄昏的光线带着一丝凉意，提醒着白昼即将结束。你独自站在天台，看着太阳最后的光亮被远处的楼群吞没。天色暗了下来，城市的灯火次第亮起，像是一场无声的交接。可你心里清楚，有些光亮一旦熄灭，就再也回不来了。']
+    },
+    迷茫: {
+      一句话: ['夕阳落下，明天会是什么样', '暮色四合，我的方向在哪里', '晚霞散尽，前路无光'],
+      一句诗: ['日暮苍山远，天寒白屋贫', '苍茫暮色起，孤影立斜阳', '浮云游子意，落日故人情'],
+      一段话: ['太阳正在落下，天空的颜色从明亮变成灰暗，像是某种隐喻。你看着那片渐渐消失的霞光，忽然觉得它像极了自己的梦想——曾经绚烂过，却终究逃不过被黑夜吞噬的命运。明天太阳还会升起吗？你问自己，却找不到答案。', '黄昏是最容易让人迷茫的时刻。白天的一切都结束了，夜晚的一切还没有开始。你站在这个夹缝中，看着夕阳一点点消失，感觉自己也被这片暮色慢慢吞没。该往哪里走？该做什么？也许只有等到天亮，才能找到答案。']
+    },
+    震撼: {
+      一句话: ['落日熔金，天地为之变色', '晚霞烧遍半边天，壮丽无双', '日落如燃，震撼心灵'],
+      一句诗: ['大漠孤烟直，长河落日圆', '苍山如海，残阳如血', '火烧连营三百里，霞光万道照苍穹'],
+      一段话: ['整个天空都在燃烧。从 horizon 到 zenith，层层叠叠的晚霞像熔化的金属一样翻滚流动。深红、橙黄、玫粉、淡紫，色彩剧烈地碰撞、交融，像是天空在进行一场盛大的烟火表演。你站在那里，被这片铺天盖地的绚烂所震撼，连呼吸都忘记了。', '太阳即将沉入地平线的那一刻，迸发出最夺目的光芒。整片天空被染成血红色，云层像是被点燃了一样，边缘闪烁着金色的火焰。大地上的一切——建筑、树木、河流——都被镀上了一层耀眼的金红。你忽然理解了什么叫"壮美"——它不是温柔的美，而是让人屏住呼吸的、具有压迫感的美。']
+    }
+  },
+  // 通用 fallback 模板，用于未匹配的场景
+  default: {
+    愉悦: {
+      一句话: ['眼前风光无限好，心随美景共飞扬', '天地有大美，此刻正当年', '风景如画，心花怒放'],
+      一句诗: ['春风得意马蹄疾，一日看尽长安花', '水光潋滟晴方好，山色空蒙雨亦奇', '两个黄鹂鸣翠柳，一行白鹭上青天'],
+      一段话: ['眼前的景色美得让人屏住呼吸。阳光正好，微风不燥，天地间的一切都恰到好处。你站在这片美景之中，感觉自己也被染上了快乐的色彩。原来幸福就是这么简单——一个好天气，一片好风景，一颗感受美好的心。']
+    },
+    希望: {
+      一句话: ['美景在前方，希望在路上', '每一处风景，都是新的起点', '春光正好，未来可期'],
+      一句诗: ['长风破浪会有时，直挂云帆济沧海', '沉舟侧畔千帆过，病树前头万木春', '山重水复疑无路，柳暗花明又一村'],
+      一段话: ['眼前的风景让你停下了脚步。虽然前路还未可知，但这片美景似乎在悄悄告诉你：继续往前走吧，美好的事物永远在前方等你。就像这四季轮回的风景，冬天总会过去，春天终会到来。']
+    },
+    宁静: {
+      一句话: ['静看风景，心如止水', '风景无言，却道尽温柔', '此刻静好，岁月安然'],
+      一句诗: ['行到水穷处，坐看云起时', '人闲桂花落，夜静春山空', '采菊东篱下，悠然见南山'],
+      一段话: ['周围的一切都很安静。没有喧嚣，没有匆忙，只有眼前的风景和内心的平静。你找了一个舒服的地方坐下，什么都不做，什么都不想，只是静静地看着。原来最美的风景，不在远方，就在此刻的宁静之中。']
+    },
+    感伤: {
+      一句话: ['风景依旧，人事已非', '美景易逝，回忆长存', '独对风景，物是人非'],
+      一句诗: ['昔人已乘黄鹤去，此地空余黄鹤楼', '物是人非事事休，欲语泪先流', '小楼昨夜又东风，故国不堪回首月明中'],
+      一段话: ['眼前的风景很美，却莫名让你感到一丝惆怅。也许是因为这样的美景曾经和某个人一起看过，如今却只剩下你一个人。风景不会变，变的是看风景的人。那些未说出口的想念，都化作了此刻心底的一声轻叹。']
+    },
+    迷茫: {
+      一句话: ['风景万千，我的方向在哪里', '迷茫时刻，风景也成了谜', '前路茫茫，何处是归途'],
+      一句诗: ['不识庐山真面目，只缘身在此山中', '云深不知处，日暮待何人', '路漫漫其修远兮，吾将上下而求索'],
+      一段话: ['眼前的风景让你陷入了沉思。世界这么大，风景这么美，可你却不知道自己该往哪个方向走。就像这片无边的风景，看似处处是路，实则处处迷茫。也许答案不在风景里，而在你心里——只是你还没有准备好去面对。']
+    },
+    震撼: {
+      一句话: ['天地有大美，震撼无言', '壮丽山河，令人屏息', '自然之力，撼人心魄'],
+      一句诗: ['飞流直下三千尺，疑是银河落九天', '造化钟神秀，阴阳割昏晓', '会当凌绝顶，一览众山小'],
+      一段话: ['眼前的景象让你忘记了呼吸。大自然的鬼斧神工在此刻展现得淋漓尽致，每一寸风景都在诉说着天地的力量。你站在那里，感觉自己渺小得像一粒尘埃，却又无比庆幸——庆幸自己能亲眼见证这样的壮美，庆幸自己活在这个星球上。']
+    }
+  }
+};
+
+// ==================== 场景关键词映射 ====================
+const SCENE_MAP = {
+  sea: ['海', '浪', '沙滩', '海岸', '海边', '海洋', '潮汐', '涛', '蔚蓝', '碧海'],
+  mountain: ['山', '峰', '岭', '崖', '峦', '顶', '登高', '林', '森林', '树木', '松', '竹'],
+  city: ['城', '街', '楼', '灯', '霓虹', '大厦', '街道', '建筑', '都市'],
+  countryside: ['田', '村', '麦', '农庄', '田园', '稻', '农', '牧场'],
+  snow: ['雪', '冰', '冬', '寒', '白', '霜', '冻'],
+  desert: ['沙漠', '沙', '戈壁', '荒', '沙丘'],
+  flower: ['花', '樱花', '桃花', '牡丹', '玫瑰', '郁金香', '花海', '花园'],
+  lake: ['湖', '泊', '池', '潭', '水面', '湖畔', '湖边'],
+  grassland: ['草原', '草', '牧', '野', '草地', '草坪'],
+  star: ['星空', '星', '银河', '夜空', '宇宙', '星辰', '银河'],
+  sunrise: ['日出', '朝阳', '晨光', '破晓', '黎明'],
+  sunset: ['日落', '夕阳', '晚霞', '黄昏', '暮色'],
+  rain: ['雨', '雨声', '细雨', '梅雨', '雨滴']
+};
+
+// 根据输入判断场景
+function detectScene(input) {
+  for (const [scene, keywords] of Object.entries(SCENE_MAP)) {
+    if (keywords.some(k => input.includes(k))) return scene;
+  }
+  return 'default';
+}
+
+// 获取模板
+function getTemplate(scene, mood, style) {
+  const sceneData = TEMPLATES[scene] || TEMPLATES.default;
+  const moodData = sceneData[mood] || TEMPLATES.default[mood];
+  if (!moodData) return null;
+
+  let styleData;
+  if (style === '自由发挥') {
+    const rand = Math.random();
+    if (rand < 0.33) styleData = moodData['一句话'];
+    else if (rand < 0.66) styleData = moodData['一句诗'];
+    else styleData = moodData['一段话'];
+  } else {
+    styleData = moodData[style] || moodData['一句话'];
+  }
+
+  if (!styleData || styleData.length === 0) return null;
+  return styleData[Math.floor(Math.random() * styleData.length)];
+}
+
+// ==================== 打字机效果 ====================
+function typeWriter(text, element, speed = 50) {
+  return new Promise(resolve => {
+    isTyping = true;
+    element.innerHTML = '<span class="cursor"></span>';
+    element.style.display = 'block';
+    let i = 0;
+    const span = document.createElement('span');
+    element.insertBefore(span, element.querySelector('.cursor'));
+
+    function type() {
+      if (i < text.length) {
+        span.textContent += text.charAt(i);
+        i++;
+        setTimeout(type, speed + Math.random() * 30);
+      } else {
+        isTyping = false;
+        element.querySelector('.cursor')?.remove();
+        resolve();
+      }
+    }
+    type();
+  });
+}
+
+// ==================== 生成赞美 ====================
+async function generatePraise() {
+  if (isTyping) return;
+
+  const input = document.getElementById('sceneInput').value.trim();
+  if (!input) {
+    alert('请先描述你当前所处的环境~');
+    return;
+  }
+
+  const scene = detectScene(input);
+  const template = getTemplate(scene, currentMood, currentStyle);
+
+  // 显示加载
+  const outputArea = document.getElementById('outputArea');
+  const placeholder = document.getElementById('outputPlaceholder');
+  const outputText = document.getElementById('outputText');
+  const actionRow = document.getElementById('actionRow');
+
+  placeholder.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+  outputText.style.display = 'none';
+  actionRow.style.display = 'none';
+  outputArea.classList.remove('has-result');
+
+  // 模拟生成延迟
+  await new Promise(r => setTimeout(r, 1200));
+
+  placeholder.style.display = 'none';
+  const text = template || '此处风景独好，愿你心有诗意，眼有光芒。';
+  await typeWriter(text, outputText, currentStyle === '一段话' ? 35 : 55);
+
+  actionRow.style.display = 'flex';
+  outputArea.classList.add('has-result');
+}
+
+// ==================== 按钮交互 ====================
+// 心境选择
+document.getElementById('moodButtons').addEventListener('click', e => {
+  const btn = e.target.closest('.mood-btn');
+  if (!btn) return;
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentMood = btn.dataset.mood;
+});
+
+// 风格选择
+document.getElementById('styleButtons').addEventListener('click', e => {
+  const btn = e.target.closest('.style-btn');
+  if (!btn) return;
+  document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentStyle = btn.dataset.style;
+});
+
+// 生成按钮 + 水波纹
+document.getElementById('generateBtn').addEventListener('click', function(e) {
+  const rect = this.getBoundingClientRect();
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple';
+  const size = Math.max(rect.width, rect.height);
+  ripple.style.width = ripple.style.height = size + 'px';
+  ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+  ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+  this.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 600);
+  generatePraise();
+});
+
+// 复制
+document.getElementById('copyBtn').addEventListener('click', function(e) {
+  const text = document.getElementById('outputText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    this.textContent = '已复制';
+    setTimeout(() => this.textContent = '复制', 1500);
+  });
+  // 水波纹
+  const rect = this.getBoundingClientRect();
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple';
+  ripple.style.width = ripple.style.height = '60px';
+  ripple.style.left = (e.clientX - rect.left - 30) + 'px';
+  ripple.style.top = (e.clientY - rect.top - 30) + 'px';
+  this.style.position = 'relative';
+  this.style.overflow = 'hidden';
+  this.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 600);
+});
+
+// 重新生成
+document.getElementById('regenBtn').addEventListener('click', e => {
+  const btn = e.target.closest('.action-btn');
+  if (btn) {
+    const rect = btn.getBoundingClientRect();
+    const ripple = document.createElement('span');
+    ripple.className = 'ripple';
+    ripple.style.width = ripple.style.height = '60px';
+    ripple.style.left = (e.clientX - rect.left - 30) + 'px';
+    ripple.style.top = (e.clientY - rect.top - 30) + 'px';
+    btn.style.position = 'relative';
+    btn.style.overflow = 'hidden';
+    btn.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 600);
+  }
+  generatePraise();
+});
+
+// ==================== 日夜切换 ====================
+document.getElementById('themeToggle').addEventListener('click', () => {
+  isNight = !isNight;
+  document.body.setAttribute('data-theme', isNight ? 'night' : 'day');
+  const icon = document.getElementById('themeIcon');
+  icon.className = isNight ? 'moon-icon' : 'sun-icon';
+  initParticles();
+});
+
+// ==================== 视差效果 ====================
+document.addEventListener('mousemove', e => {
+  const x = (e.clientX / window.innerWidth - 0.5) * 2;
+  const y = (e.clientY / window.innerHeight - 0.5) * 2;
+
+  document.querySelectorAll('.parallax-layer').forEach(layer => {
+    const speed = parseFloat(layer.dataset.speed) || 0.02;
+    layer.style.transform = `translate(${x * speed * 100}px, ${y * speed * 50}px)`;
+  });
+
+  document.getElementById('celestial').style.transform =
+    `translate(${x * 8}px, ${y * 5}px)`;
+});
+
+// ==================== 鼠标拖尾 ====================
+let lastTrail = 0;
+document.addEventListener('mousemove', e => {
+  const now = Date.now();
+  if (now - lastTrail < 40) return;
+  lastTrail = now;
+
+  const dot = document.createElement('div');
+  dot.className = 'trail-dot';
+  const size = 4 + Math.random() * 8;
+  dot.style.width = size + 'px';
+  dot.style.height = size + 'px';
+  dot.style.left = e.clientX + 'px';
+  dot.style.top = e.clientY + 'px';
+
+  const colors = isNight
+    ? ['rgba(163,230,53,0.5)', 'rgba(192,132,252,0.4)', 'rgba(129,140,248,0.4)']
+    : ['rgba(255,215,100,0.5)', 'rgba(245,158,11,0.4)', 'rgba(251,146,60,0.4)'];
+  dot.style.background = colors[Math.floor(Math.random() * colors.length)];
+  dot.style.boxShadow = `0 0 ${size * 2}px ${dot.style.background}`;
+
+  document.getElementById('trailContainer').appendChild(dot);
+  setTimeout(() => dot.remove(), 1500);
+});
+
+// ==================== Canvas 粒子系统 ====================
+const canvas = document.getElementById('particleCanvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+let mouseX = 0, mouseY = 0;
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+document.addEventListener('mousemove', e => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+});
+
+class Particle {
+  constructor() {
+    this.reset();
+  }
+  reset() {
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.vx = (Math.random() - 0.5) * 0.5;
+    this.vy = (Math.random() - 0.5) * 0.5;
+    this.size = isNight ? 2 + Math.random() * 4 : 1.5 + Math.random() * 2.5;
+    this.life = Math.random() * 100;
+    this.maxLife = 100 + Math.random() * 100;
+  }
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.life++;
+
+    // 鼠标排斥
+    const dx = this.x - mouseX;
+    const dy = this.y - mouseY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 150 && dist > 0) {
+      const force = (150 - dist) / 150 * 0.8;
+      this.vx += (dx / dist) * force;
+      this.vy += (dy / dist) * force;
+    }
+
+    // 阻尼
+    this.vx *= 0.98;
+    this.vy *= 0.98;
+
+    // 边界
+    if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height || this.life > this.maxLife) {
+      this.reset();
+    }
+  }
+  draw() {
+    const alpha = Math.sin((this.life / this.maxLife) * Math.PI) * 0.7;
+    const colors = isNight
+      ? [`rgba(163,230,53,${alpha})`, `rgba(192,132,252,${alpha})`]
+      : [`rgba(255,215,100,${alpha})`, `rgba(251,146,60,${alpha})`];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // 光晕
+    const glow = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 3);
+    glow.addColorStop(0, color.replace(/[\d.]+\)$/, '0.3)'));
+    glow.addColorStop(1, 'transparent');
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
+    ctx.fillStyle = glow;
+    ctx.fill();
+  }
+}
+
+function initParticles() {
+  const count = isNight ? 70 : 50;
+  particles = [];
+  for (let i = 0; i < count; i++) {
+    particles.push(new Particle());
+  }
+}
+
+function animateParticles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles.forEach(p => { p.update(); p.draw(); });
+  requestAnimationFrame(animateParticles);
+}
+
+initParticles();
+animateParticles();
+
+// ==================== 星星生成 ====================
+function createStars() {
+  const container = document.getElementById('stars');
+  container.innerHTML = '';
+  for (let i = 0; i < 30; i++) {
+    const star = document.createElement('div');
+    star.className = 'star';
+    star.style.left = Math.random() * 100 + '%';
+    star.style.top = Math.random() * 60 + '%';
+    star.style.animationDelay = Math.random() * 3 + 's';
+    star.style.animationDuration = (2 + Math.random() * 3) + 's';
+    container.appendChild(star);
+  }
+}
+createStars();
+
+// ==================== 初始化 ====================
+// 默认根据时间判断
+const hour = new Date().getHours();
+if (hour < 6 || hour >= 19) {
+  isNight = true;
+  document.body.setAttribute('data-theme', 'night');
+  document.getElementById('themeIcon').className = 'moon-icon';
+}
+</script>
+</body>
+</html>
